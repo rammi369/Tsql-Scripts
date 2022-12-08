@@ -1,0 +1,30 @@
+select der.blocking_session_id,der.session_id,der.status
+       ,der.schedular_id
+       ,dec.net_packet_size,dec.net_transport
+       ,der.wait_type,der.wait_time
+       ,der.wait_resource
+       ,der.writes,der.reads,der.cpu_time as c2
+       ,des.host_process_id
+       ,des.arithabort
+       ,der.percent_complete
+       ,OBJECT_SCHEMA_NAME(SQLText.objectid,der.database_id) as objectSchema
+       ,object_name(SQLText.objectid,der.database_id) as object_name
+       ,SUBSTRING(SQLText.text, statement_start_offset/2 + 1,2147483647)--((CASE WHEN statement_end_offset = -1 THEN LEN(CONVERT(nvarchar(max),
+SQLText.text)) * 2 ELSE statement_end_offset END) - statement_start_offset)/2)
+       --,des.last_request_start_time,des.login_time
+       ,des.host_name
+       ,der.total_elapsed_time
+--     ,db_name(der.database_id)
+    --,des.program_name
+      ,des.login_name
+      ,((der.granted_query_memory*8192.0)/1024) granted_query_memory_in_kb
+      ,der.*, des.*, dec.*
+      ,SQLPlan.*
+from sys.dm_exec_requests der join sys.dm_exec_sessions des
+on (der.session_id = des.session_id) join sys.dm_exec_connections dec
+on (der.connection_id = dec.connection_id)
+outer apply sys.dm_exec_sql_text(der.sqlhandle) as SQLText
+outer apply sys.dm_exec_query_plan(der.plan_handle) as SQLPlan
+where der.session_id > 50
+and der.session_id not in (@@SPID)
+order by granted_query_memory_in_kb desc
